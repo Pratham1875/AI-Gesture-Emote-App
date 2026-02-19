@@ -4,6 +4,8 @@ import time
 from hand_tracker import process_hands
 from face_tracker import process_face
 from video_player import play_video
+from gif_player import play_gif
+
 
 cap = cv2.VideoCapture(0)
 
@@ -46,6 +48,9 @@ while True:
 
             elif gesture == "double_index":
                 play_video("videos/double_index.mp4")
+                
+            elif gesture == "both_palms_forward":
+                play_gif("gifs/both_palms_forward.gif")
 
             elif gesture == "tongue_out":
                 play_video("videos/tongue_out.mp4")

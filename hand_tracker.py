@@ -32,6 +32,27 @@ def process_hands(frame):
             hand_landmarks,
             mp_hands.HAND_CONNECTIONS
         )
+    
+    if len(results.multi_hand_landmarks)==2:
+        both_palms_forward=True
+        
+        for hand_landmarks in results.multi_hand_landmarks:
+            lm =hand_landmarks.landmark
+            
+            all_up =(
+                lm[8].y < lm[6].y and
+                lm[12].y < lm[10].y and
+                lm[16].y < lm[14].y and
+                lm[20].y <lm[18].y
+            )
+            vertical = lm[8].y <lm[0].y
+            
+            palm_forward=lm[8].z <lm[0].z
+            
+            if not(all_up and vertical and palm_forward):
+                both_palms_forward=False
+        if both_palms_forward:
+            return "both_palms_forward"
 
     # ==============================
     # 1️⃣ NAMASTE
