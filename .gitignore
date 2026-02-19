@@ -1,0 +1,15 @@
+# Virtual Environment
+emote_env/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Mac files
+.DS_Store
+
+# VS Code
+.vscode/
+
+# Videos (optional if large)
+videos/*.mp4
