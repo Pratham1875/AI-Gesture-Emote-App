@@ -26,61 +26,85 @@ def process_hands(frame):
     if not results.multi_hand_landmarks:
         return None
 
+    # Draw landmarks
     for hand_landmarks in results.multi_hand_landmarks:
         mp_draw.draw_landmarks(
             frame,
             hand_landmarks,
             mp_hands.HAND_CONNECTIONS
         )
-    
-    if len(results.multi_hand_landmarks)==2:
-        both_palms_forward=True
-        
-        for hand_landmarks in results.multi_hand_landmarks:
-            lm =hand_landmarks.landmark
-            
-            all_up =(
-                lm[8].y < lm[6].y and
-                lm[12].y < lm[10].y and
-                lm[16].y < lm[14].y and
-                lm[20].y <lm[18].y
-            )
-            vertical = lm[8].y <lm[0].y
-            
-            palm_forward=lm[8].z <lm[0].z
-            
-            if not(all_up and vertical and palm_forward):
-                both_palms_forward=False
-        if both_palms_forward:
-            return "both_palms_forward"
 
-    # ==============================
-    # 1️⃣ NAMASTE
-    # ==============================
+    # ===================================================
+    # 1️⃣ TWO HAND GESTURES (NO CONFLICT VERSION)
+    # ===================================================
     if len(results.multi_hand_landmarks) == 2:
+
         h1 = results.multi_hand_landmarks[0].landmark
         h2 = results.multi_hand_landmarks[1].landmark
 
-        index_dist = distance(h1[8], h2[8], frame.shape)
-        middle_dist = distance(h1[12], h2[12], frame.shape)
+        # ---------------- HANDS ON HEAD ----------------
+        # Detect both hands raised high (above upper frame area)
+        h, w, _ = frame.shape
+
+        wrist1_y = int(h1[0].y * h)
+        wrist2_y = int(h2[0].y * h)
+
+        index1_y = int(h1[8].y * h)
+        index2_y = int(h2[8].y * h)
+
+        # Hands must be high in the frame (top 35%)
+        hands_high = wrist1_y < int(h * 0.35) and wrist2_y < int(h * 0.35)
+
+        # Fingers roughly above wrists (indicating upward placement)
+        fingers_above = index1_y < wrist1_y and index2_y < wrist2_y
+
+        if hands_high and fingers_above:
+            return "hands_on_head"
+
         palm_dist = distance(h1[9], h2[9], frame.shape)
 
         h1_vertical = h1[8].y < h1[0].y
         h2_vertical = h2[8].y < h2[0].y
 
+        # ---------------- NAMASTE (STABLE VERSION) ----------------
+        palm_dist = distance(h1[9], h2[9], frame.shape)
+
+        h1_vertical = h1[8].y < h1[0].y
+        h2_vertical = h2[8].y < h2[0].y
+
+        # Check palms roughly facing each other using depth (z-axis)
+        palms_facing = abs(h1[9].z - h2[9].z) < 0.05
+
         if (
-            palm_dist < 100
-            and index_dist < 70
-            and middle_dist < 70
-            and h1_vertical
-            and h2_vertical
+            palm_dist < 130 and
+            h1_vertical and
+            h2_vertical and
+            palms_facing
         ):
             return "namaste"
 
-    # ==============================
-    # 2️⃣ DOUBLE INDEX
-    # ==============================
-    if len(results.multi_hand_landmarks) == 2:
+        # ---------------- BOTH PALMS FORWARD ----------------
+        both_all_up = True
+
+        for hand_landmarks in results.multi_hand_landmarks:
+            lm = hand_landmarks.landmark
+
+            all_up = (
+                lm[8].y < lm[6].y and
+                lm[12].y < lm[10].y and
+                lm[16].y < lm[14].y and
+                lm[20].y < lm[18].y
+            )
+
+            vertical = lm[8].y < lm[0].y
+
+            if not (all_up and vertical):
+                both_all_up = False
+
+        if both_all_up and palm_dist > 150:
+            return "both_palms_forward"
+
+        # ---------------- DOUBLE INDEX ----------------
         both_index_only = True
 
         for hand_landmarks in results.multi_hand_landmarks:
@@ -97,13 +121,14 @@ def process_hands(frame):
         if both_index_only:
             return "double_index"
 
-    # ==============================
-    # 3️⃣ SINGLE HAND
-    # ==============================
-    for hand_landmarks in results.multi_hand_landmarks:
-        lm = hand_landmarks.landmark
+    # ===================================================
+    # 2️⃣ SINGLE HAND GESTURES (ONLY IF 1 HAND)
+    # ===================================================
+    if len(results.multi_hand_landmarks) == 1:
 
-        # Open palm
+        lm = results.multi_hand_landmarks[0].landmark
+
+        # ---------- OPEN PALM ----------
         all_up = (
             lm[8].y < lm[6].y
             and lm[12].y < lm[10].y
@@ -114,7 +139,7 @@ def process_hands(frame):
         if all_up:
             return "open_palm"
 
-        # Peace
+        # ---------- PEACE ----------
         index_up = lm[8].y < lm[6].y
         middle_up = lm[12].y < lm[10].y
         ring_down = lm[16].y > lm[14].y
@@ -123,7 +148,7 @@ def process_hands(frame):
         if index_up and middle_up and ring_down and pinky_down:
             return "peace"
 
-        # Thumbs up
+        # ---------- THUMBS UP ----------
         if lm[4].y < lm[3].y:
             return "thumbs_up"
 

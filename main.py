@@ -51,6 +51,9 @@ while True:
                 
             elif gesture == "both_palms_forward":
                 play_gif("gifs/both_palms_forward.gif")
+                
+            elif gesture == "hands_on_head":
+                play_gif("gifs/hands_on_head.gif")
 
             elif gesture == "tongue_out":
                 play_video("videos/tongue_out.mp4")
