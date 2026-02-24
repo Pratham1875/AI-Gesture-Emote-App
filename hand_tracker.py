@@ -66,20 +66,27 @@ def process_hands(frame):
         h1_vertical = h1[8].y < h1[0].y
         h2_vertical = h2[8].y < h2[0].y
 
-        # ---------------- NAMASTE (STABLE VERSION) ----------------
+        # ---------------- NAMASTE (ROBUST VERSION) ----------------
         palm_dist = distance(h1[9], h2[9], frame.shape)
 
+        # Hands must be vertical
         h1_vertical = h1[8].y < h1[0].y
         h2_vertical = h2[8].y < h2[0].y
 
-        # Check palms roughly facing each other using depth (z-axis)
-        palms_facing = abs(h1[9].z - h2[9].z) < 0.05
+        # Palms roughly facing each other (depth check)
+        palms_facing = abs(h1[9].z - h2[9].z) < 0.04
+
+        # Hands must be close both horizontally and vertically
+        horizontal_close = abs(h1[9].x - h2[9].x) < 0.12
+        vertical_close = abs(h1[9].y - h2[9].y) < 0.12
 
         if (
-            palm_dist < 130 and
+            palm_dist < 100 and
             h1_vertical and
             h2_vertical and
-            palms_facing
+            palms_facing and
+            horizontal_close and
+            vertical_close
         ):
             return "namaste"
 
@@ -128,6 +135,49 @@ def process_hands(frame):
 
         lm = results.multi_hand_landmarks[0].landmark
 
+
+        # ---------- SINGLE INDEX UP ----------
+        index_up_only = (
+            lm[8].y < lm[6].y and      # index up
+            lm[12].y > lm[10].y and    # middle down
+            lm[16].y > lm[14].y and    # ring down
+            lm[20].y > lm[18].y        # pinky down
+        )
+
+        # ---------- THINKING (FACE LEVEL INDEX) ----------
+        # Only require index up and near upper half of frame (no bending needed)
+        index_tip_y = lm[8].y
+        index_high_in_frame = index_tip_y < 0.50
+
+        # ---------- THINKING vs SINGLE INDEX (WITH BUFFER) ----------
+        if not hasattr(process_hands, "thinking_counter"):
+            process_hands.thinking_counter = 0
+        if not hasattr(process_hands, "index_counter"):
+            process_hands.index_counter = 0
+
+        if index_up_only and index_high_in_frame:
+            process_hands.thinking_counter += 1
+            process_hands.index_counter = 0
+
+            # Require a few frames to confirm thinking
+            if process_hands.thinking_counter > 4:
+                process_hands.thinking_counter = 0
+                return "thinking"
+
+        elif index_up_only:
+            process_hands.index_counter += 1
+            process_hands.thinking_counter = 0
+
+            # Require slight delay before confirming single index
+            if process_hands.index_counter > 6:
+                process_hands.index_counter = 0
+                return "single_index_up"
+
+        else:
+            process_hands.thinking_counter = 0
+            process_hands.index_counter = 0
+
+
         # ---------- OPEN PALM ----------
         all_up = (
             lm[8].y < lm[6].y
@@ -148,8 +198,6 @@ def process_hands(frame):
         if index_up and middle_up and ring_down and pinky_down:
             return "peace"
 
-        # ---------- THUMBS UP ----------
-        if lm[4].y < lm[3].y:
-            return "thumbs_up"
+       
 
     return None

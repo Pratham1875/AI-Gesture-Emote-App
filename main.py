@@ -5,6 +5,7 @@ from hand_tracker import process_hands
 from face_tracker import process_face
 from video_player import play_video
 from gif_player import play_gif
+from image_player import show_image
 
 
 cap = cv2.VideoCapture(0)
@@ -12,6 +13,9 @@ cap = cv2.VideoCapture(0)
 last_gesture = None
 last_trigger_time = 0
 cooldown = 3
+
+active_image = None
+image_end_time = 0
 
 
 while True:
@@ -57,6 +61,14 @@ while True:
 
             elif gesture == "tongue_out":
                 play_video("videos/tongue_out.mp4")
+                
+            elif gesture == "thinking":
+                active_image = cv2.imread("images/thinking.jpeg")
+                image_end_time = current_time + 2
+                
+            elif gesture == "single_index_up":
+                active_image = cv2.imread("images/single_index.jpeg")
+                image_end_time = current_time + 2
 
             last_trigger_time = current_time
 
@@ -70,6 +82,24 @@ while True:
             (0, 255, 0),
             2,
         )
+
+    # ==============================
+    # IMAGE OVERLAY (CENTERED)
+    # ==============================
+    if active_image is not None and current_time < image_end_time:
+        overlay = cv2.resize(active_image, (500, 500))
+
+        h, w, _ = frame.shape
+        oh, ow, _ = overlay.shape
+
+        x1 = w // 2 - ow // 2
+        y1 = h // 2 - oh // 2
+        x2 = x1 + ow
+        y2 = y1 + oh
+
+        frame[y1:y2, x1:x2] = overlay
+    elif current_time >= image_end_time:
+        active_image = None
 
     cv2.imshow("Emote Camera", frame)
 
